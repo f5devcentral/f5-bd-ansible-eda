@@ -1,0 +1,95 @@
+---  
+- name: ASM Policy Update with Blocked IPs
+  hosts: next-cm
+  connection: local
+  gather_facts: false 
+  vars:
+    #Blocked_IPs_Events: "{{ ansible_eda.event.payload }}"
+
+  tasks:
+
+  - name: Blocked IP Events From EDA
+    debug:
+      msg: "{{ Blocked_IPs_Events.payload }}"
+
+  - name: Create Array from BlockedIPs
+    ansible.builtin.set_fact:
+        Blocked_IPs: "{{ Blocked_IPs_Events.payload.split(',') }}"
+    when: Blocked_IPs_Events is defined
+
+  - debug:
+      msg: "{{ Blocked_IPs }}"
+
+
+  - name: Login to BIG-IP Next
+    ansible.builtin.uri:
+      url: " https://{{bigip_next_cm_mgmt_ip}}/api/login"
+      method: POST
+      body: '{"username": "{{ bigip_next_cm_mgmt_username }}", "password": "{{ bigip_next_cm_admin_password }}"}'
+      status_code: 200
+      timeout: 300
+      body_format: json
+      validate_certs: false
+    delegate_to: localhost
+    register: login_info
+    no_log: true
+
+  # - debug:
+  #     var: login_info
+
+  - name: Get all WAF Policies
+    ansible.builtin.uri:
+      url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies"
+      #url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies?filter=hostname+startswith+%27RAPID%27"  
+      method: GET
+      status_code: 200
+      timeout: 300
+      body_format: json
+      headers:
+        Authorization: "Bearer {{login_info.json.access_token}}"
+      validate_certs: false
+    delegate_to: localhost
+    register: waf_policies_info
+    # no_log: true
+
+  - debug:
+      var: waf_policies_info
+
+  - debug:
+      var: item
+    with_items: "{{ waf_policies_info.json._embedded.policies }}"
+
+  - name: Parse Policy
+    set_fact: 
+      waf_policy_id: "{{ item.id }}"
+    when: item.name == "Rapid-Template"
+    with_items: "{{ waf_policies_info.json._embedded.policies }}"
+
+  - debug:
+      var: waf_policy_id
+
+  - name: Get Specific WAF Policy
+    ansible.builtin.uri:
+      url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies/{{waf_policy_id}}"
+      method: GET
+      status_code: 200
+      timeout: 300
+      body_format: json
+      headers:
+        Authorization: "Bearer {{login_info.json.access_token}}"
+      validate_certs: false
+    delegate_to: localhost
+    register: waf_policy
+
+  - name: Extract Declaration
+    set_fact: 
+      waf_policy_declaration: "{{ waf_policy.json.declaration }}"
+
+  - debug:
+      var: waf_policy_declaration
+
+  # - name: Update the fact
+  #   ansible.utils.update_fact:
+  #     updates:
+  #       - path: waf_policy_declaration.policy.whitelist-ips
+  #         value: apache
