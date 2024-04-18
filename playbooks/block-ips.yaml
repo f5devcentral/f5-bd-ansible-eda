@@ -75,7 +75,7 @@
 
 
   - debug:
-      var: waf_policy.results[0].json.message
+      var: waf_policy.results[0].json.message is not search ("already exists")
 
 #   { "action": "create",
 #   "ip_address": "1.2.3.4",
