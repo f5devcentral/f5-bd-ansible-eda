@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false 
   vars:
-    #Blocked_IPs_Events: "{{ ansible_eda.event.payload }}"
+    Blocked_IPs_Events: "{{ ansible_eda.event.payload }}"
 
   tasks:
 
