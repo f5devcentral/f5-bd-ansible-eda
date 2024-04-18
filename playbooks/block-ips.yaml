@@ -60,7 +60,7 @@
       url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf/policy-ip-addresses/"
       method: POST
       body: '{"blocking_mode":"always","ip_address":"{{item}}","ip_mask":"","action":"create","policies":["{{ waf_policy_name }}"],"trusted_by_policy_builder":false,"never_log_requests":false,"never_learn_requests":false}' 
-      status_code: 200
+      status_code: 204
       timeout: 300
       body_format: json
       headers:
@@ -69,7 +69,10 @@
     delegate_to: localhost
     register: waf_policy
     with_items: "{{ Blocked_IPs }}"
+    failed_when: (waf_policy.status == 400) and
+      '(waf_policy.content|default() is not search ("already exists"))'
 
+      
 #   { "action": "create",
 #   "ip_address": "1.2.3.4",
 #   "ip_mask": "255.255.255.255",
