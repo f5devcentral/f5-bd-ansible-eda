@@ -72,6 +72,9 @@
     with_items: "{{ Blocked_IPs }}"
     failed_when: (waf_policy.status == 400) and (waf_policy.json.message is not search ("already exists"))
 
+  # - debug:
+  #     var: waf_policy
+
   - name: "Deploying WAF Policy - {{ waf_policy_name }}"
     ansible.builtin.uri:
       url: "https://{{bigip_next_cm_mgmt_ip}}/api/waf/v1/tasks/deploy-policy"
@@ -86,3 +89,6 @@
       validate_certs: false
     delegate_to: localhost
     register: waf_deployment
+
+  # - debug:
+  #     var: waf_deployment
