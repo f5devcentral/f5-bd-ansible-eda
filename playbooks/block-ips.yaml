@@ -75,8 +75,7 @@
 
 
   - debug:
-      var: item
-    with_items: waf_policy.results
+      var: waf_policy.results
 
 #   { "action": "create",
 #   "ip_address": "1.2.3.4",
