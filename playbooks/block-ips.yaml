@@ -74,6 +74,8 @@
     #failed_when: (waf_policy.status == 400) and (waf_policy.content|default() is not search ("already exists"))
 
 
+  - debug:
+      var: waf_policy
 #   { "action": "create",
 #   "ip_address": "1.2.3.4",
 #   "ip_mask": "255.255.255.255",
