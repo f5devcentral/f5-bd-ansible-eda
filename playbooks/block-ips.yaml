@@ -40,7 +40,6 @@
   - name: Get all WAF Policies
     ansible.builtin.uri:
       url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies"
-      #url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies?filter=hostname+startswith+%27RAPID%27"  
       method: GET
       status_code: 200
       timeout: 300
@@ -55,7 +54,7 @@
   # - debug:
   #     var: waf_policies_info
 
-  - name: "Add IP to {{ waf_policy_name }}"
+  - name: "Add Blocked IPs to {{ waf_policy_name }}"
     ansible.builtin.uri:
       url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf/policy-ip-addresses/"
       method: POST
@@ -72,3 +71,19 @@
     register: waf_policy
     with_items: "{{ Blocked_IPs }}"
     failed_when: (waf_policy.status == 400) and (waf_policy.json.message is not search ("already exists"))
+
+  - name: "Deploying WAF Policy - {{ waf_policy_name }}"
+    ansible.builtin.uri:
+      url: "https://{{bigip_next_cm_mgmt_ip}}/api/waf/v1/tasks/deploy-policy"
+      method: POST
+      body: '{"policy_name": "{{ waf_policy_name }}","comment": "This is a comment" }'
+      status_code: 
+        - 204
+        - 200
+      timeout: 300
+      body_format: json
+      headers:
+        Authorization: "Bearer {{login_info.json.access_token}}"
+      validate_certs: false
+    delegate_to: localhost
+    register: waf_deployment
