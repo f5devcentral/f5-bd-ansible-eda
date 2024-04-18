@@ -55,23 +55,11 @@
   - debug:
       var: waf_policies_info
 
-  - debug:
-      var: item
-    with_items: "{{ waf_policies_info.json._embedded.policies }}"
-
-  - name: Parse Policy
-    set_fact: 
-      waf_policy_id: "{{ item.id }}"
-    when: item.name == "Rapid-Template"
-    with_items: "{{ waf_policies_info.json._embedded.policies }}"
-
-  - debug:
-      var: waf_policy_id
-
-  - name: Get Specific WAF Policy
+  - name: "Add IP to {{ waf-policy-name }}"
     ansible.builtin.uri:
-      url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies/{{waf_policy_id}}"
-      method: GET
+      url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf/policy-ip-addresses/"
+      method: POST
+      body: '{"blocking_mode":"always","ip_address":"{{item}}","ip_mask":"","action":"create","policies":["{{ waf-policy-name }}"],"trusted_by_policy_builder":false,"never_log_requests":false,"never_learn_requests":false}' 
       status_code: 200
       timeout: 300
       body_format: json
@@ -80,13 +68,53 @@
       validate_certs: false
     delegate_to: localhost
     register: waf_policy
+    with_items: "{{ Blocked_IPs }}"
 
-  - name: Extract Declaration
-    set_fact: 
-      waf_policy_declaration: "{{ waf_policy.json.declaration }}"
+#   { "action": "create",
+#   "ip_address": "1.2.3.4",
+#   "ip_mask": "255.255.255.255",
+#   "blocking_mode": "always",
+#   "never_learn_requests": true,
+#   "never_log_requests": true,
+#   "trusted_by_policy_builder": true,
+#   "policies": [
+#     "Rapid-Template"
+#    ]
+# }
 
-  - debug:
-      var: waf_policy_declaration
+
+  # - debug:
+  #     var: item
+  #   with_items: "{{ waf_policies_info.json._embedded.policies }}"
+
+  # - name: Parse Policy
+  #   set_fact: 
+  #     waf_policy_id: "{{ item.id }}"
+  #   when: item.name == "Rapid-Template"
+  #   with_items: "{{ waf_policies_info.json._embedded.policies }}"
+
+  # - debug:
+  #     var: waf_policy_id
+
+  # - name: Get Specific WAF Policy
+  #   ansible.builtin.uri:
+  #     url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf-policies/{{waf_policy_id}}"
+  #     method: GET
+  #     status_code: 200
+  #     timeout: 300
+  #     body_format: json
+  #     headers:
+  #       Authorization: "Bearer {{login_info.json.access_token}}"
+  #     validate_certs: false
+  #   delegate_to: localhost
+  #   register: waf_policy
+
+  # - name: Extract Declaration
+  #   set_fact: 
+  #     waf_policy_declaration: "{{ waf_policy.json.declaration }}"
+
+  # - debug:
+  #     var: waf_policy_declaration
 
   # - name: Update the fact
   #   ansible.utils.update_fact:
