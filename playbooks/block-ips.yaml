@@ -75,7 +75,7 @@
 
 
   - debug:
-      var: waf_policy.results
+      var: waf_policy.results.json.message
 
 #   { "action": "create",
 #   "ip_address": "1.2.3.4",
