@@ -10,11 +10,11 @@
 
   - name: Blocked IP Payload from Event Driven Ansible
     debug:
-      msg: "{{ Blocked_IPs_Events.payload }}"
+      msg: "{{ Blocked_IPs_Events.body }}"
 
   - name: Create Array from BlockedIPs
     ansible.builtin.set_fact:
-        Blocked_IPs: "{{ Blocked_IPs_Events.payload.split(',') }}"
+        Blocked_IPs: "{{ Blocked_IPs_Events.body.split(',') }}"
     when: Blocked_IPs_Events is defined
 
   - debug:
