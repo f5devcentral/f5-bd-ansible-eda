@@ -75,7 +75,8 @@
 
 
   - debug:
-      var: waf_policy
+      var: item.json.message
+    with_items: waf_policy.results
 #   { "action": "create",
 #   "ip_address": "1.2.3.4",
 #   "ip_mask": "255.255.255.255",
