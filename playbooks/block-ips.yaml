@@ -71,7 +71,7 @@
     delegate_to: localhost
     register: waf_policy
     with_items: "{{ Blocked_IPs }}"
-    failed_when: (waf_policy.status == 400) and (waf_policy.content|default() is not search ("already exists"))
+    #failed_when: (waf_policy.status == 400) and (waf_policy.content|default() is not search ("already exists"))
 
 
 #   { "action": "create",
