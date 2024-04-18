@@ -78,8 +78,7 @@
       method: POST
       body: '{"policy_name": "{{ waf_policy_name }}","comment": "This is a comment" }'
       status_code: 
-        - 204
-        - 200
+        - 201
       timeout: 300
       body_format: json
       headers:
