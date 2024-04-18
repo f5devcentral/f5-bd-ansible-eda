@@ -55,11 +55,11 @@
   - debug:
       var: waf_policies_info
 
-  - name: "Add IP to {{ waf-policy-name }}"
+  - name: "Add IP to {{ waf_policy_name }}"
     ansible.builtin.uri:
       url: "https://{{bigip_next_cm_mgmt_ip}}/api/v1/spaces/default/security/waf/policy-ip-addresses/"
       method: POST
-      body: '{"blocking_mode":"always","ip_address":"{{item}}","ip_mask":"","action":"create","policies":["{{ waf-policy-name }}"],"trusted_by_policy_builder":false,"never_log_requests":false,"never_learn_requests":false}' 
+      body: '{"blocking_mode":"always","ip_address":"{{item}}","ip_mask":"","action":"create","policies":["{{ waf_policy_name }}"],"trusted_by_policy_builder":false,"never_log_requests":false,"never_learn_requests":false}' 
       status_code: 200
       timeout: 300
       body_format: json
