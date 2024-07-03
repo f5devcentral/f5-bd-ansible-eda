@@ -8,3 +8,16 @@ We provide Rulebooks and Playbooks for Event Driven Automation, which can be imp
 
 ## Purpose of this Code
 This code is intended for customer use and will assist customers in testing, validating, or even implementing Event Driven Security Solutions with their F5 Products. Multiple monitoring vendors can be implemented with this code, and the solutions provided are examples of what has been directly validated, not limitations to specific products.
+
+
+## Requirements
+- Requires Ansible 2.15 or Higher
+
+- Users also need to include platform collections as per their requirements. The supported platform collections are:
+  - [f5networks.f5_bigip](https://github.com/F5Networks/f5-ansible-bigip)
+  - [f5networks.f5_modules](https://github.com/F5Networks/f5-ansible)
+  - [f5networks.next](https://github.com/F5Networks/f5-ansible-next)
+
+## Execution Environment Available to use
+- If you would like to utilize an existing Execution Environment in your Lab for this code its located at 
+  - [F5 Ansible EE with Next](https://quay.io/repository/f5_business_development/f5_next_ee_test)
