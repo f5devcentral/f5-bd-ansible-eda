@@ -21,3 +21,7 @@ This code is intended for customer use and will assist customers in testing, val
 ## Execution Environment Available to use
 - If you would like to utilize an existing Execution Environment in your Lab for this code its located at 
   - [F5 Ansible EE with Next](https://quay.io/repository/f5_business_development/f5_next_ee_test)
+
+## Monitoring Solution of your Choice
+
+In the provided Integrations, we have provided some code and information on two monitoring solutions (ElasticSearch and Dynatrace) This doesnt inhibit anyone from the monitoring solution of their choice, it just is provided information as an example of integrations
