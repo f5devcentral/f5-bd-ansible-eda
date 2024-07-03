@@ -1,0 +1,96 @@
+{
+  "trigger": {
+    "schedule": {
+      "interval": "3m"
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "search_type": "query_then_fetch",
+        "indices": [
+          "awaf-*"
+        ],
+        "rest_total_hits_as_int": true,
+        "body": {
+          "size": 20,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match": {
+                    "request_status.keyword": "alerted"
+                  }
+                },
+                {
+                  "terms": {
+                    "severity.keyword": [
+                      "Critical",
+                      "Error"
+                    ]
+                  }
+                },
+                {
+                  "terms": {
+                    "geoip.country_code2.keyword": [
+                      "CN",
+                      "KP",
+                      "RU"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "@timestamp": {
+                      "gte": "now-5m",
+                      "lte": "now"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "condition": {
+    "compare": {
+      "ctx.payload.hits.total": {
+        "gt": 0
+      }
+    }
+  },
+  "actions": {
+    "logstash_exec": {
+      "transform": {
+        "script": {
+          "source": """
+            def hits = ctx.payload.hits.hits; 
+            def transform = ''; 
+            for (hit in hits) 
+            {
+                transform += hit._source.src_ip;
+                transform += ', '
+            }
+            return transform;
+            """,
+          "lang": "painless"
+        }
+      },
+      "webhook": {
+        "scheme": "http",
+        "host": "10.1.1.12",
+        "port": 5000,
+        "method": "post",
+        "path": "/endpoint",
+        "params": {},
+        "headers": {},
+        "body": """{
+			"message": "Ansible Please Block Some IPs",
+			"payload": "{{ctx.payload._value}}"
+		}"""
+      }
+    }
+  }
+}

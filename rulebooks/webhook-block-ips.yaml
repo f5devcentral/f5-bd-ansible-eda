@@ -2,14 +2,17 @@
 - name: Listen for events on a webhook
   hosts: all
 
-  ## Define our source for events
+  ## Define our source for events this will enact a listening port on port 5000 for events for EDA
 
   sources:
     - ansible.eda.webhook:
         host: 0.0.0.0
         port: 5000
 
-  ## Define the conditions we are looking for
+  ## Define the conditions we are looking for, in this example our monitoring solutions will pass a Payload including a Payload Message
+  ## This message is "Ansible Please Block Some IPs"  this will trigger EDA to excute a Template on Ansible Automation Platform Called
+  ## Block IPs in the default organization, this code can be modified or changed to reflect your desired code
+  ## The playbook expects the event to pass along a payload of CSV IP Addresses. 
 
   rules:
     - name: Block IPs

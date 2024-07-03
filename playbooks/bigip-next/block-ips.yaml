@@ -1,0 +1,101 @@
+---
+# This code is designed to connect to your BIG-IP NEXT and Block IPs using a payload, currently its hard coded in vars but one could use a payload to resolve
+# this is also looking for Hosts F5 this could be modified as well for any other reason.
+
+
+- name: ASM Policy Update with Blocked IPs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    Blocked_IPs_Events: "{{ ansible_eda.event.payload }}"
+
+  tasks:
+
+    - name: Blocked IP Payload from Event Driven Ansible
+      ansible.builtin.debug:
+        msg: "{{ Blocked_IPs_Events.body }}"
+
+    - name: Create Array from BlockedIPs
+      ansible.builtin.set_fact:
+        Blocked_IPs: "{{ Blocked_IPs_Events.body.split(',') }}"
+      when: Blocked_IPs_Events is defined
+
+    - name: "Show Debug of Blocked IPs"
+      ansible.builtin.debug:
+        msg: "These are the IPs that need to be blocked - {{ Blocked_IPs }}"
+
+    - name: Login to BIG-IP Next
+      ansible.builtin.uri:
+        url: " https://{{ bigip_next_cm_mgmt_ip }}/api/login"
+        method: POST
+        body: '{"username": "{{ bigip_next_cm_mgmt_username }}", "password": "{{ bigip_next_cm_admin_password }}"}'
+        status_code: 200
+        timeout: 300
+        body_format: json
+        validate_certs: false
+      delegate_to: localhost
+      register: login_info
+      no_log: true
+
+    # - name: Debug Login Info
+    #   ansible.builtin.debug:
+    #     var: login_info
+
+    - name: Get all WAF Policies
+      ansible.builtin.uri:
+        url: "https://{{ bigip_next_cm_mgmt_ip }}/api/v1/spaces/default/security/waf-policies"
+        method: GET
+        status_code: 200
+        timeout: 300
+        body_format: json
+        headers:
+          Authorization: "Bearer {{ login_info.json.access_token }}"
+        validate_certs: false
+      delegate_to: localhost
+      register: waf_policies_info
+      # no_log: true
+
+    # - debug:
+    #     var: waf_policies_info
+
+    - name: "Add Blocked IPs to {{ waf_policy_name }}"
+      ansible.builtin.uri:
+        url: "https://{{ bigip_next_cm_mgmt_ip }}/api/v1/spaces/default/security/waf/policy-ip-addresses/"
+        method: POST
+        body: '{"blocking_mode":"always","ip_address":"{{ item }}","ip_mask":"","action":"create","policies":["{{ waf_policy_name }}"],"trusted_by_policy_builder":false,"never_log_requests":false,"never_learn_requests":false}'
+        status_code:
+          - 204
+          - 400
+        timeout: 300
+        body_format: json
+        headers:
+          Authorization: "Bearer {{ login_info.json.access_token }}"
+        validate_certs: false
+      delegate_to: localhost
+      register: waf_policy
+      with_items: "{{ Blocked_IPs }}"
+      failed_when: (waf_policy.status == 400) and (waf_policy.json.message is not search("already exists"))
+
+    # - name: Debug WAF Policy
+    #   ansible.builtin.debug:
+    #     var: waf_policy
+
+    - name: "Deploying WAF Policy - {{ waf_policy_name }}"
+      ansible.builtin.uri:
+        url: "https://{{ bigip_next_cm_mgmt_ip }}/api/waf/v1/tasks/deploy-policy"
+        method: POST
+        body: '{"policy_name": "{{ waf_policy_name }}","comment": "This is a comment" }'
+        status_code:
+          - 201
+        timeout: 300
+        body_format: json
+        headers:
+          Authorization: "Bearer {{ login_info.json.access_token }}"
+        validate_certs: false
+      delegate_to: localhost
+      register: waf_deployment
+
+    # - name: debug WAF_Deployment Output
+    #   ansible.builtin.debug:
+    #     var: waf_deployment

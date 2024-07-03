@@ -1,0 +1,25 @@
+---
+- name: Listen for events on a webhook
+  hosts: all
+
+  ## Define our source for events this will enact a listening port on port 5001 for events for EDA
+
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5001
+
+  ## Define the conditions we are looking for, in this example our monitoring solutions will pass a Payload including a Payload Message
+  ## This message is "Ansible Please Turn on AWAF Policy"  this will trigger EDA to excute a Template on Ansible Automation Platform Called
+  ## AWAF-Blocking in the default organization, this code can be modified or changed to reflect your desired code
+
+  rules:
+    - name: Inbound Payload Message
+      condition: event.payload.message == "Ansible Please Turn on AWAF Policy"
+
+  ## Define the action we should take should the condition be met
+
+      action:
+        run_job_template:
+          name: "AWAF-Blocking"
+          organization: "Default"

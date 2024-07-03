@@ -1,0 +1,147 @@
+---
+
+# This code is designed to connect to your Classic BIG-IP and Block IPs using a payload, currently its hard coded in vars but one could use a payload to resolve
+# this is also looking for Hosts F5 this could be modified as well for any other reason.
+
+- name: ASM Policy Update with Blocked IPs
+  hosts: lb
+  connection: local
+  gather_facts: false
+  vars:
+    Blocked_IPs_Events: "{{ ansible_eda.event.payload }}"
+    F5_VIP_Name: VS_WEB
+    F5_VIP_Port: "80"
+    F5_Admin_Port: "443"
+    ASM_Policy_Name: "WAF-POLICY"
+    ASM_Policy_Directory: "/tmp/f5/"
+    ASM_Policy_File: "WAF-POLICY.xml"
+
+  tasks:
+
+    - name: Setup provider
+      ansible.builtin.set_fact:
+        provider:
+          server: "{{ ansible_host }}"
+          user: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
+          server_port: "{{ F5_Admin_Port }}"
+          validate_certs: "no"
+
+    - name: Blocked IP Events From EDA
+      ansible.builtin.debug:
+        msg: "{{ Blocked_IPs_Events.payload }}"
+
+    - name: Create Array from BlockedIPs
+      ansible.builtin.set_fact:
+        Blocked_IPs: "{{ Blocked_IPs_Events.payload.split(', ') }}"
+      when: Blocked_IPs_Events is defined
+
+    - name: Remove Last Object from Array which is empty array object
+      ansible.builtin.set_fact:
+        Blocked_IPs: "{{ Blocked_IPs[:-1] }}"
+      when: Blocked_IPs_Events is defined
+
+    - name: Show Blocked IPs
+      ansible.builtin.debug:
+        msg: "{{ Blocked_IPs }}"
+
+#Fetch ASM_Policy to Variable
+    - name: Fetching ASM Policy
+      f5networks.f5_modules.bigip_asm_policy_fetch:
+        provider: "{{ provider }}"
+        name: "{{ ASM_Policy_Name }}"
+        inline: true
+        force: true
+      register: ASM_Policy
+      when: Blocked_URLs is defined or Blocked_IPs is defined
+
+    - name: Create tmp directory if it does not exist
+      ansible.builtin.file:
+        path: "{{ ASM_Policy_Directory }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+
+# Output Data to File due to BUG 1390
+    - name: Copy Memory to File
+      ansible.builtin.copy:
+        content: "{{ ASM_Policy.inline_policy }}"
+        dest: "{{ ASM_Policy_Directory }}{{ ASM_Policy_File }}"
+      when: Blocked_URLs is defined or Blocked_IPs is defined
+      delegate_to: localhost
+
+# Validate Existing IP Addresses
+    - name: Validate Existing IP Addresses
+      ansible.builtin.shell: grep "<ip_address>{{ item }}" {{ ASM_Policy_Directory }}{{ ASM_Policy_File }}
+      register: Blocked_IP_Valid
+      with_items: "{{ Blocked_IPs }}"
+      ignore_errors: true
+      when: Blocked_IPs is defined and item != ""
+      delegate_to: localhost
+
+# Import Additional Disallowed IPs
+    - name: Add Disallowed IPs
+      community.general.xml:
+        path: "{{ ASM_Policy_Directory }}{{ ASM_Policy_File }}"
+        pretty_print: true
+        input_type: xml
+        insertafter: true
+        xpath: /policy/geolocation
+        add_children: "<whitelist><ip_address>{{ item.item }}</ip_address><subnet_mask>255.255.255.255</subnet_mask><policy_builder_trusted>false</policy_builder_trusted><ignore_anomalies>false</ignore_anomalies><never_log>false</never_log><block_ip>Always</block_ip><never_learn>false</never_learn><description>blocked</description><ignore_ip_reputation>false</ignore_ip_reputation></whitelist>"
+      with_items: "{{ Blocked_IP_Valid.results }}"
+      when: Blocked_IPs is defined and item != "" and item.rc == 1
+      delegate_to: localhost
+
+# Re-Deploy ASM policy
+    - name: Create an LTM policy
+      f5networks.f5_modules.bigip_policy:
+        provider: "{{ provider }}"
+        name: "{{ ASM_Policy_Name }}"
+        state: present
+      when: Blocked_URLs is defined or Blocked_IPs is defined
+      delegate_to: localhost
+
+    - name: Import ASM policy
+      f5networks.f5_modules.bigip_asm_policy_import:
+        provider: "{{ provider }}"
+        name: "{{ ASM_Policy_Name }}"
+        source: "{{ ASM_Policy_Directory }}{{ ASM_Policy_File }}"
+        force: true
+      when: Blocked_URLs is defined or Blocked_IPs is defined
+      delegate_to: localhost
+
+    - name: Replace a forward action with an ASM action
+      f5networks.f5_modules.bigip_policy_rule:
+        provider: "{{ provider }}"
+        policy: "{{ ASM_Policy_Name }}"
+        name: rule1
+        actions:
+          - type: enable
+            asm_policy: "{{ ASM_Policy_Name }}"
+      when: Blocked_URLs is defined or Blocked_IPs is defined
+      delegate_to: localhost
+
+    - name: Deploy Draft ASM policy
+      f5networks.f5_modules.bigip_policy:
+        provider: "{{ provider }}"
+        name: "{{ ASM_Policy_Name }}"
+        state: present
+        rules:
+          - rule1
+      when: Blocked_URLs is defined or Blocked_IPs is defined
+      delegate_to: localhost
+
+# Apply Draft ASM policy
+    - name: Activate ASM Policy
+      f5networks.f5_modules.bigip_asm_policy_manage:
+        provider: "{{ provider }}"
+        name: "{{ ASM_Policy_Name }}"
+        active: true
+      delegate_to: localhost
+
+# Publish ASM Policy via TMSH
+    - name: Publish ASM Policy via TMSH
+      f5networks.f5_modules.bigip_command:
+        commands: "publish asm policy {{ ASM_Policy_Name }}"
+        provider: "{{ provider }}"
+      delegate_to: localhost

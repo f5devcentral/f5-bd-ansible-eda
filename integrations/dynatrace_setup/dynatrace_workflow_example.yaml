@@ -1,0 +1,432 @@
+metadata:
+  version: "1"
+  dependencies:
+    apps:
+      - id: dynatrace.automations
+        version: ^1.637.0
+      - id: my.aap.eda.remediation
+        version: ^0.2.2
+  inputs:
+    - type: connection
+      schema: app:my.aap.eda.remediation:aap-eda-remediation-connection
+      targets:
+        - tasks.send_event_eda.connectionId
+workflow:
+  title: F5 Big-IP Next Event Driven Security
+  tasks:
+    send_event_eda:
+      name: send_event_eda
+      description: Trigger a generic webhook to Event Driven Ansible with a
+        customizable payload.
+      action: my.aap.eda.remediation:aap-eda-remediation-webhook
+      active: true
+      input:
+        payload: '{{ result("js_format_details_eda") }}'
+        execution: "{{ execution().id }}"
+        connectionId: ""
+        #REPLACE [MyInstance_ID] with Actual Instance ID (No Brackets)
+        environmentId: "[MyInstance_ID]"
+        includeExecutionId: true
+        includeEnvironmentId: true
+      position:
+        x: 0
+        y: 7
+      predecessors:
+        - js_format_details_eda
+      conditions:
+        states:
+          js_format_details_eda: SUCCESS
+    js_create_event:
+      name: js_create_event
+      description: Build a custom task running js Code
+      action: dynatrace.automations:run-javascript
+      input:
+        script: >-
+          import { eventsClient, EventIngestEventType } from
+          "@dynatrace-sdk/client-classic-environment-v2";
+
+          import { execution } from '@dynatrace-sdk/automation-utils';
+
+
+          const PARAMETERS_TASK = 'js_set_parameters';
+
+          const BLOCK_TASK = 'js_filter_blocked_countries';
+
+
+          export default async function ({ execution_id }) {
+
+            // get parameters and results from previous tasks
+            const ex = await execution(execution_id);
+            
+            // parameters
+            const parameters = await ex.result(PARAMETERS_TASK);
+            const custom_device_id = parameters['CUSTOM_DEVICE'];
+            const blocked_countries = parameters['BLOCKED_COUNTRIES'];
+            
+            // blocked countries results
+            const blocked_results = await ex.result(BLOCK_TASK);
+
+            // consolidate blocked countries results for the event
+            let event_properties = {};
+            // add blocked countries as attributes
+            for(var c=0; c<blocked_countries.length; c++) {
+              event_properties[blocked_countries[c]] = new Array();
+            }
+            // loop through blocked results and add matching blocked IP addresses to each country
+            for(var b=0; b<blocked_results.length; b++) {
+              event_properties[blocked_results[b]['countryCode']].push(blocked_results[b]['x_forwarded_for_header_value']);
+            }
+
+            event_properties = {};
+            
+            // create the event
+            const event_title = 'Detected suspicious/malicious traffic from blocked country origins';
+            const event_body = {
+              eventType: EventIngestEventType.CustomAlert,
+              title: event_title,
+              timeout: 3,
+              entitySelector: 'type(CUSTOM_DEVICE),entityId("' + custom_device_id + '")',
+              properties: event_properties
+            }
+
+            console.log(event_body);
+            
+            const event_response = await eventsClient.createEvent({
+              body : event_body,
+             });
+            
+             console.log(event_response);
+
+            let correlationId = '';
+            if(event_response.eventIngestResults[0].status == "OK") {
+               correlationId = event_response.eventIngestResults[0].correlationId;
+             }
+              
+            return  { event_properties, correlationId }; 
+          };
+      position:
+        x: 0
+        y: 5
+      predecessors:
+        - js_filter_blocked_countries
+      conditions:
+        states:
+          js_filter_blocked_countries: SUCCESS
+        custom: '{{ result("js_filter_blocked_countries") | length > 0 }}'
+    js_geo_locations:
+      name: js_geo_locations
+      description: Build a custom task running js Code
+      action: dynatrace.automations:run-javascript
+      active: true
+      input:
+        script: >-
+          import { execution } from '@dynatrace-sdk/automation-utils';
+
+          import { credentialVaultClient } from
+          '@dynatrace-sdk/client-classic-environment-v2';
+
+
+          const PARAMETERS_TASK = 'js_set_parameters';
+
+          const LOGS_TASK = 'dql_query_f5_logs';
+
+
+          export default async function ({ execution_id }) {
+
+            // get parameters and results from previous tasks
+            const ex = await execution(execution_id);
+            
+            // parameters
+            const parameters = await ex.result(PARAMETERS_TASK);
+            const threshold = parameters['THRESHOLD'];
+            const geoUrl = parameters['GEO_URL'];
+            const geoTokenCredential = parameters['GEO_TOKEN'];
+
+            // geo token from credential vault
+            const credential_details = (await credentialVaultClient.getCredentialsDetails({id: geoTokenCredential }));
+            const geoToken = credential_details['token'];
+            
+            // log results data
+            const log_result = await ex.result(LOGS_TASK);
+            const log_records = log_result.records;
+
+            // Geo Records Loop
+            const geoRecords =[];
+            
+            for (var i = 0; i < log_records.length; i++ ){
+              // log data
+              const geoIp = log_records[i]['x_forwarded_for_header_value'];
+              const hits = log_records[i]['Count'];
+              const dest_ip = log_records[i]['dest_ip'];
+              const dest_port = log_records[i]['dest_port'];
+              const protocol = log_records[i]['protocol'];
+
+              // query geo url with ip
+              const geoIpUrl = geoUrl + geoIp;
+              const geoLocateIp = await fetch(geoIpUrl, {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "Authorization": 'Basic ' + geoToken
+                },
+                }
+              )
+
+              if(geoLocateIp.status == 200) {
+                const georesponseJson = await geoLocateIp.json();
+              
+                //const city =  georesponseJson.city.names.en;
+                //const continent = georesponseJson.continent.code;
+                //const continentName = georesponseJson.continent.names.en;
+                const countryCode = georesponseJson.country.iso_code;
+                const countryName = georesponseJson.country.names.en;
+                //const zipOrPostal = georesponseJson.postal.code;
+                
+                geoRecords.push({
+                  "x_forwarded_for_header_value": geoIp,
+                  "countryCode": countryCode,
+                  "countryName": countryName,
+                  "hits": hits,
+                  "dest_ip": dest_ip,
+                  "dest_port": dest_port,
+                  "protocol": protocol
+                })
+              } else if(geoLocateIp.status == 400){
+                const georesponseJson = await geoLocateIp.json();
+                const code = georesponseJson.code;
+                
+                geoRecords.push({
+                  "x_forwarded_for_header_value": geoIp,
+                  "countryCode": code,
+                  "countryName": code,
+                  "hits": hits,
+                  "dest_ip": dest_ip,
+                  "dest_port": dest_port,
+                  "protocol": protocol
+                })
+              } else {
+                
+                  geoRecords.push({
+                    "x_forwarded_for_header_value": geoIp,
+                    "countryCode": 'NOT FOUND',
+                    "countryName": 'NOT FOUND',
+                    "hits": hits,
+                    "dest_ip": dest_ip,
+                    "dest_port": dest_port,
+                    "protocol": protocol
+                  })
+              }
+              
+            }
+
+            return geoRecords;
+          }
+      position:
+        x: 0
+        y: 3
+      predecessors:
+        - dql_query_f5_logs
+      conditions:
+        states:
+          dql_query_f5_logs: SUCCESS
+        custom: '{{ result("dql_query_f5_logs").records | length > 0 }}'
+    dql_query_f5_logs:
+      name: dql_query_f5_logs
+      description: Executes DQL query
+      action: dynatrace.automations:execute-dql-query
+      input:
+      #REPLACE DT.Auth.ORIGIN and Dest_IP with your own values
+        query: >-
+          fetch logs, from: now()-6m
+
+          | filter dt.auth.origin == "dt0c0......." and
+          dt.entity.custom_device == "CUSTOM_DEVICE-B4F0CE91D8160852"
+
+          | filterOut isNull(x_forwarded_for_header_value)
+
+          | fieldsAdd dest_ip = `10.1.1.1`, dest_port = `80`, protocol = `http`
+
+          | summarize Count = count(), by: {dest_ip, dest_port, protocol,
+          x_forwarded_for_header_value, timestamp}
+
+          | sort timestamp desc
+
+          | limit 20
+
+          | fieldsRemove timestamp
+      position:
+        x: 0
+        y: 2
+      predecessors:
+        - js_set_parameters
+      conditions:
+        states:
+          js_set_parameters: SUCCESS
+    js_set_parameters:
+      name: js_set_parameters
+      description: Build a custom task running js Code
+      action: dynatrace.automations:run-javascript
+      input:
+        # Replace URL with your Own URL For EDA, This code also blocks for Russia and China GEO Regions
+        script: |-
+          export default async function ({ execution_id }) {
+
+            const parameters = {
+              'THRESHOLD': 1,
+              'EDA_URL': 'http://example.ansible-eda.f5demo.net:5000',
+              'CUSTOM_DEVICE': 'CUSTOM_DEVICE-B4F0CE91D8160852',
+              'GEO_URL': 'https://geolite.info/geoip/v2.1/city/',
+              'GEO_TOKEN': 'CREDENTIALS_VAULT-86E518981B4CC4AA',
+              'BLOCKED_COUNTRIES': ['RU','CN']
+            }
+
+            return parameters;
+          }
+      position:
+        x: -1
+        y: 1
+      predecessors: []
+    js_format_details_eda:
+      name: js_format_details_eda
+      description: Build a custom task running js Code
+      action: dynatrace.automations:run-javascript
+      active: true
+      input:
+        script: >+
+          import { execution } from '@dynatrace-sdk/automation-utils';
+
+
+          const PARAMETERS_TASK = 'js_set_parameters';
+
+          const RESULTS_TASK = 'js_filter_blocked_countries';
+
+          const EVENT_TASK = 'js_create_event';
+
+
+          export default async function ({ execution_id }) {
+
+            // get parameters and results from previous tasks
+            const ex = await execution(execution_id);
+
+            // parameters
+            const parameters = await ex.result(PARAMETERS_TASK);
+            const eda_url = parameters['EDA_URL'];
+            
+            // results
+            const results = await ex.result(RESULTS_TASK);
+
+            // event
+            const event = await ex.result(EVENT_TASK);
+
+            // set the EDA event body
+            // expecting a 'message' and 'body' with 'body' being a CSV of IP addresses
+            let eda_message = 'Ansible Please Block Some IPs';
+
+            // create a CSV from the array of results
+            let eda_body = results[0]['x_forwarded_for_header_value'];
+            for(var i=1; i<results.length; i++) {
+              eda_body = eda_body + ',' + results[i]['x_forwarded_for_header_value'];
+            }
+
+            // set the fetch() api parameters [method, headers, body]
+            //const options = {
+            //  method: "POST",
+            //  headers: {
+            //    'content-type': "application/json",
+            //  },
+            //  body: JSON.stringify({
+            //    'message': eda_message,
+            //   'body': eda_body,
+            //  })
+            //};
+            
+            // execute the fetch() api call to register the user
+            //const resp = await fetch(eda_url,options);
+            //console.log('EDA Response Code: ' + resp.status);
+            //const eda_response_code = resp.status;
+
+            let details = JSON.stringify({ 'message': eda_message, 'body': eda_body });
+            let details_json = JSON.parse(details);
+
+            return details;
+            
+            // return the details
+            //return { 'message': eda_message, 'body': eda_body };
+
+            
+          };
+
+      position:
+        x: 0
+        y: 6
+      predecessors:
+        - js_create_event
+      conditions:
+        states:
+          js_create_event: OK
+        custom: '{{ result("js_filter_blocked_countries") | length > 0 }}'
+    js_filter_blocked_countries:
+      name: js_filter_blocked_countries
+      description: Build a custom task running js Code
+      action: dynatrace.automations:run-javascript
+      input:
+        script: >-
+          import { execution } from '@dynatrace-sdk/automation-utils';
+
+
+          const PARAMETERS_TASK = 'js_set_parameters';
+
+          const GEO_TASK = 'js_geo_locations';
+
+
+          export default async function ({ execution_id }) {
+
+            // get parameters and results from previous tasks
+            const ex = await execution(execution_id);
+            
+            // parameters
+            const parameters = await ex.result(PARAMETERS_TASK);
+            const blocked_countries = parameters['BLOCKED_COUNTRIES'];
+            
+            // geo results data
+            const geo_results = await ex.result(GEO_TASK);
+
+            // blocked ip addresses
+            const blocked_ips = [];
+
+            // loop through results with geo location data and add ips from blocked countries to array
+            for (var i = 0; i < geo_results.length; i++ ){
+              let index = blocked_countries.indexOf(geo_results[i]['countryCode']);
+              if(index >= 0) {
+                blocked_ips.push(geo_results[i]);
+              }
+            }
+            
+            return blocked_ips;
+          }
+      position:
+        x: 0
+        y: 4
+      predecessors:
+        - js_geo_locations
+      conditions:
+        states:
+          js_geo_locations: SUCCESS
+        custom: '{{ result("js_geo_locations") | length >= 1 }}'
+  description: ""
+  trigger:
+    schedule:
+      rule: null
+      trigger:
+        type: interval
+        intervalMinutes: 5
+      timezone: America/Chicago
+      isActive: true
+      isFaulty: false
+      nextExecution: 2024-07-03T16:10:00.000Z
+      filterParameters:
+        earliestStart: 2024-04-15
+        earliestStartTime: 00:00
+      inputs: {}
+  schemaVersion: 3

@@ -1,0 +1,9 @@
+# Replace [MyInstance_ID] with Dynatrace Instance ID (No Brakcets), Replace [MyClient_ID] and [MyClient_Secret] with Dynatrace Secret and Client ID (No Brackets)
+ 
+name: F5 Demo Environment
+api_endpoint_host: [MyInstance_ID].apps.dynatrace.com
+oauth:
+  client_id: [MyClient_ID]
+  client_secret: "[MyClient_Secret]"
+  resource: urn:dtenvironment:[MyInstance_ID]
+  endpoint: https://sso.dynatrace.com/sso/oauth2/token
