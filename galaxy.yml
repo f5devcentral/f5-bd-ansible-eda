@@ -25,11 +25,11 @@ description: Event-Driven Security with F5 BIG-IP and BIG-IP Next using Event Dr
 # Either a single license or a list of licenses for content inside of a collection. Ansible Galaxy currently only
 # accepts L(SPDX,https://spdx.org/licenses/) licenses. This key is mutually exclusive with 'license_file'
 license:
-  - Apache-2.0
+  - GPL-3.0
 
 # The path to the license file for the collection. This path is relative to the root of the collection. This key is
 # mutually exclusive with 'license'
-license_file: ""
+license_file: "https://github.com/f5devcentral/f5-bd-ansible-eda/blob/validate-content/LICENSE"
 
 # A list of tags you want to associate with the collection for indexing/searching. A tag name has the same character
 # requirements as 'namespace' and 'name'
@@ -43,7 +43,8 @@ tags:
 # collection label 'namespace.name'. The value is a version range
 # L(specifiers,https://python-semanticversion.readthedocs.io/en/latest/#requirement-specification). Multiple version
 # range specifiers can be set and are separated by ','
-dependencies: {}
+dependencies: { f5networks.f5_modules, f5networks.f5_bigip, f5networks.next, ansible.utils, ansible.posix, ansible.netcommon, ansible.posix }
+
 
 # The URL of the originating SCM repository
 repository: https://github.com/f5devcentral/f5-bd-ansible-eda
