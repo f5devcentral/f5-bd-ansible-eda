@@ -50,6 +50,8 @@ dependencies:
   ansible.utils : '*'
   ansible.posix : '*'
   ansible.netcommon : '*'
+  community.general: '*'
+
 
 
 # The URL of the originating SCM repository
