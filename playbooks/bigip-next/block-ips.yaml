@@ -8,22 +8,22 @@
   connection: local
   gather_facts: false
   vars:
-    Blocked_IPs_Events: "{{ ansible_eda.event.payload }}"
+    blocked_ip_events: "{{ ansible_eda.event.payload }}"
 
   tasks:
 
     - name: Blocked IP Payload from Event Driven Ansible
       ansible.builtin.debug:
-        msg: "{{ Blocked_IPs_Events.body }}"
+        msg: "{{ blocked_ip_events.body }}"
 
     - name: Create Array from BlockedIPs
       ansible.builtin.set_fact:
-        Blocked_IPs: "{{ Blocked_IPs_Events.body.split(',') }}"
-      when: Blocked_IPs_Events is defined
+        blocked_ips: "{{ blocked_ip_events.body.split(',') }}"
+      when: blocked_ip_events is defined
 
     - name: "Show Debug of Blocked IPs"
       ansible.builtin.debug:
-        msg: "These are the IPs that need to be blocked - {{ Blocked_IPs }}"
+        msg: "These are the IPs that need to be blocked - {{ blocked_ips }}"
 
     - name: Login to BIG-IP Next
       ansible.builtin.uri:
@@ -74,7 +74,7 @@
         validate_certs: false
       delegate_to: localhost
       register: waf_policy
-      with_items: "{{ Blocked_IPs }}"
+      with_items: "{{ blocked_ips }}"
       failed_when: (waf_policy.status == 400) and (waf_policy.json.message is not search("already exists"))
 
     # - name: Debug WAF Policy
