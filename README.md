@@ -79,7 +79,7 @@ Once Templates are imported and EDA is working and integrated to the template (N
 
 When all is working the F5 will send telemetry to the Monitoring solution, the monitoring solution will make a decision in our integration usecases it will determine Geolocation traffic for China, North Korea and Russia, and when it finds those clients it will take those IP addresses and send a webhook to EDA with the payload and message.  If the message matches, the Ansible Automation Platform Template will trigger and use the payload information to automate and Add Blocked IP addresses to the BIG-IP WAF policy.
 
-## YouTube Video of Code being implemented and used (Prior to it being a Collection - Use as an Example only)
+## YouTube Video of Code being implemented and used (Prior to it being a Collection)
 If you want to see an example of the Code in use see https://www.youtube.com/watch?v=V676EF_bq-4
 
 ## License
