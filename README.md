@@ -1,7 +1,4 @@
-# Event Driven Security Templates
-
-# f5networks.f5-bd-ansible-eda playbooks Validated Content Collection
-This repository hosts the `f5networks.f5-bd-ansible-eda` Ansible Collection.
+# f5-bd-ansible-eda playbooks Validated Content Collection
 
 ## Abstract
 In today's fast-paced digital landscape, ensuring robust security while maintaining operational efficiency is paramount. Event Driven Security explores a cutting-edge approach that leverages the synergy of advanced technologies to create a resilient, responsive security framework. The templates provided in this repository will help anyone looking to set up event-driven automation with F5 Products (BIG-IP Classic and BIG-IP Next), utilizing real-time monitoring with either ElasticSearch or Dynatrace. These solutions can be seamlessly integrated to provide event-driven security. By automating security responses, optimizing traffic flow, and gaining deep visibility into ingress and egress traffic, organizations can proactively defend against emerging threats and ensure the integrity of their IT infrastructure.
