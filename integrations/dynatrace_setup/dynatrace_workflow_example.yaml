@@ -24,7 +24,7 @@ workflow:
         payload: '{{ result("js_format_details_eda") }}'
         execution: "{{ execution().id }}"
         connectionId: ""
-        #REPLACE [MyInstance_ID] with Actual Instance ID (No Brackets)
+        # REPLACE [MyInstance_ID] with Actual Instance ID (No Brackets)
         environmentId: "[MyInstance_ID]"
         includeExecutionId: true
         includeEnvironmentId: true
@@ -57,12 +57,12 @@ workflow:
 
             // get parameters and results from previous tasks
             const ex = await execution(execution_id);
-            
+
             // parameters
             const parameters = await ex.result(PARAMETERS_TASK);
             const custom_device_id = parameters['CUSTOM_DEVICE'];
             const blocked_countries = parameters['BLOCKED_COUNTRIES'];
-            
+
             // blocked countries results
             const blocked_results = await ex.result(BLOCK_TASK);
 
@@ -78,7 +78,7 @@ workflow:
             }
 
             event_properties = {};
-            
+
             // create the event
             const event_title = 'Detected suspicious/malicious traffic from blocked country origins';
             const event_body = {
@@ -90,19 +90,19 @@ workflow:
             }
 
             console.log(event_body);
-            
+
             const event_response = await eventsClient.createEvent({
               body : event_body,
              });
-            
+
              console.log(event_response);
 
             let correlationId = '';
             if(event_response.eventIngestResults[0].status == "OK") {
                correlationId = event_response.eventIngestResults[0].correlationId;
              }
-              
-            return  { event_properties, correlationId }; 
+
+            return  { event_properties, correlationId };
           };
       position:
         x: 0
@@ -135,7 +135,7 @@ workflow:
 
             // get parameters and results from previous tasks
             const ex = await execution(execution_id);
-            
+
             // parameters
             const parameters = await ex.result(PARAMETERS_TASK);
             const threshold = parameters['THRESHOLD'];
@@ -145,14 +145,14 @@ workflow:
             // geo token from credential vault
             const credential_details = (await credentialVaultClient.getCredentialsDetails({id: geoTokenCredential }));
             const geoToken = credential_details['token'];
-            
+
             // log results data
             const log_result = await ex.result(LOGS_TASK);
             const log_records = log_result.records;
 
             // Geo Records Loop
             const geoRecords =[];
-            
+
             for (var i = 0; i < log_records.length; i++ ){
               // log data
               const geoIp = log_records[i]['x_forwarded_for_header_value'];
@@ -175,14 +175,14 @@ workflow:
 
               if(geoLocateIp.status == 200) {
                 const georesponseJson = await geoLocateIp.json();
-              
+
                 //const city =  georesponseJson.city.names.en;
                 //const continent = georesponseJson.continent.code;
                 //const continentName = georesponseJson.continent.names.en;
                 const countryCode = georesponseJson.country.iso_code;
                 const countryName = georesponseJson.country.names.en;
                 //const zipOrPostal = georesponseJson.postal.code;
-                
+
                 geoRecords.push({
                   "x_forwarded_for_header_value": geoIp,
                   "countryCode": countryCode,
@@ -195,7 +195,7 @@ workflow:
               } else if(geoLocateIp.status == 400){
                 const georesponseJson = await geoLocateIp.json();
                 const code = georesponseJson.code;
-                
+
                 geoRecords.push({
                   "x_forwarded_for_header_value": geoIp,
                   "countryCode": code,
@@ -206,7 +206,7 @@ workflow:
                   "protocol": protocol
                 })
               } else {
-                
+
                   geoRecords.push({
                     "x_forwarded_for_header_value": geoIp,
                     "countryCode": 'NOT FOUND',
@@ -217,7 +217,7 @@ workflow:
                     "protocol": protocol
                   })
               }
-              
+
             }
 
             return geoRecords;
@@ -236,7 +236,7 @@ workflow:
       description: Executes DQL query
       action: dynatrace.automations:execute-dql-query
       input:
-      #REPLACE DT.Auth.ORIGIN and Dest_IP with your own values
+      # REPLACE DT.Auth.ORIGIN and Dest_IP with your own values
         query: >-
           fetch logs, from: now()-6m
 
@@ -312,7 +312,7 @@ workflow:
             // parameters
             const parameters = await ex.result(PARAMETERS_TASK);
             const eda_url = parameters['EDA_URL'];
-            
+
             // results
             const results = await ex.result(RESULTS_TASK);
 
@@ -340,7 +340,7 @@ workflow:
             //   'body': eda_body,
             //  })
             //};
-            
+
             // execute the fetch() api call to register the user
             //const resp = await fetch(eda_url,options);
             //console.log('EDA Response Code: ' + resp.status);
@@ -350,11 +350,10 @@ workflow:
             let details_json = JSON.parse(details);
 
             return details;
-            
+
             // return the details
             //return { 'message': eda_message, 'body': eda_body };
 
-            
           };
 
       position:
@@ -384,11 +383,11 @@ workflow:
 
             // get parameters and results from previous tasks
             const ex = await execution(execution_id);
-            
+
             // parameters
             const parameters = await ex.result(PARAMETERS_TASK);
             const blocked_countries = parameters['BLOCKED_COUNTRIES'];
-            
+
             // geo results data
             const geo_results = await ex.result(GEO_TASK);
 
@@ -402,7 +401,7 @@ workflow:
                 blocked_ips.push(geo_results[i]);
               }
             }
-            
+
             return blocked_ips;
           }
       position:

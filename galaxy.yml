@@ -39,16 +39,14 @@ tags:
 # collection label 'namespace.name'. The value is a version range
 # L(specifiers,https://python-semanticversion.readthedocs.io/en/latest/#requirement-specification). Multiple version
 # range specifiers can be set and are separated by ','
-dependencies: 
-  f5networks.f5_modules : '*' 
-  f5networks.f5_bigip : '*' 
-  f5networks.next : '*' 
-  ansible.utils : '*'
-  ansible.posix : '*'
-  ansible.netcommon : '*'
+dependencies:
+  f5networks.f5_modules: '*'
+  f5networks.f5_bigip: '*'
+  f5networks.next: '*'
+  ansible.utils: '*'
+  ansible.posix: '*'
+  ansible.netcommon: '*'
   community.general: '*'
-
-
 
 # The URL of the originating SCM repository
 repository: https://github.com/f5devcentral/f5-bd-ansible-eda
