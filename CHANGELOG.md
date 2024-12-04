@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 1.0.1
+
+### Features
+
+* feat: Added Lint and Sanity checks to solve upload issues.
+
+### Fixes
+
+* N/A
+
+
 ## 1.0.0
 
 ### Features
