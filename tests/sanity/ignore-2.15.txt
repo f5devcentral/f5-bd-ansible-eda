@@ -1,1 +1,1 @@
-integrations/dynatrace_setup/deploy_all.sh shellcheck:SC2154 # ignore shebang
+integrations/dynatrace_setup/deploy_all.sh shebang!skip # ignore shebang as bash shell
