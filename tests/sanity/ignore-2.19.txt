@@ -1,0 +1,1 @@
+integrations/dynatrace_setup/deploy_all.sh shebang!skip # ignore shebang as bash shell
