@@ -24,7 +24,7 @@ description: Event-Driven Security with F5 BIG-IP and BIG-IP Next using Event Dr
 
 # The path to the license file for the collection. This path is relative to the root of the collection. This key is
 # mutually exclusive with 'license'
-license_file: "https://github.com/f5devcentral/f5-bd-ansible-eda/blob/validate-content/LICENSE"
+license_file: "LICENSE"
 
 # A list of tags you want to associate with the collection for indexing/searching. A tag name has the same character
 # requirements as 'namespace' and 'name'
