@@ -1,7 +1,7 @@
 {
   "trigger": {
     "schedule": {
-      "interval": "3m"
+      "interval": "1m"
     }
   },
   "input": {
@@ -18,7 +18,7 @@
             "bool": {
               "must": [
                 {
-                  "match": {
+                  "term": {
                     "request_status.keyword": "alerted"
                   }
                 },
@@ -32,7 +32,7 @@
                 },
                 {
                   "terms": {
-                    "geoip.country_code2.keyword": [
+                    "geoip.geo.country_iso_code.keyword": [
                       "CN",
                       "KP",
                       "RU"
@@ -67,29 +67,34 @@
         "script": {
           "source": """
             def hits = ctx.payload.hits.hits; 
-            def transform = ''; 
-            for (hit in hits) 
-            {
-                transform += hit._source.src_ip;
-                transform += ', '
+            def transform = new ArrayList(); 
+            for (hit in hits) {
+                if (hit._source.containsKey('src_ip')) {
+                    def ipField = hit._source.src_ip;
+                    if (ipField instanceof List && ipField.size() > 0) {
+                        transform.add(ipField[0]);
+                    } else {
+                        transform.add(ipField);
+                    }
+                }
             }
-            return transform;
-            """,
+            return String.join(", ", transform);
+          """,
           "lang": "painless"
         }
       },
       "webhook": {
         "scheme": "http",
-        "host": "10.1.1.12",
+        "host": "10.1.1.7",
         "port": 5000,
         "method": "post",
         "path": "/endpoint",
         "params": {},
         "headers": {},
         "body": """{
-			"message": "Ansible Please Block Some IPs",
-			"payload": "{{ctx.payload._value}}"
-		}"""
+          "message": "Ansible Please Block Some IPs",
+          "payload": "{{ctx.payload._value}}"
+        }"""
       }
     }
   }

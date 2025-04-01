@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.0
+
+* bug: fixed playbook bug in text
+* update: integrations for Elastic updated to 8.17 for watcher code
+
 ## 1.0.1
 
 ### Features
